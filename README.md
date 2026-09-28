@@ -39,8 +39,6 @@ tests/             Isolated API and service tests
 
 ## Run and test
 
-From `/home/bhcp0043/Desktop/assignment`:
-
 ```bash
 source fast-env/bin/activate
 # Export the settings from .env.example with your actual values first.
