@@ -58,6 +58,25 @@ def get_products(
     return query.order_by(models.Product.id).offset(page.skip).limit(page.limit).all()
 
 
+@router.get("/products", response_model=list[schemas.ProductResponse])
+def get_all_products(
+    search: str | None = None,
+    category: str | None = None,
+    page: Pagination = Depends(),
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.Product)
+    if category:
+        query = query.filter(models.Product.category == category)
+    if search:
+        query = query.filter(models.Product.name.contains(search, autoescape=True))
+    return (
+        query.order_by(models.Product.tenant_id, models.Product.id)
+        .offset(page.skip)
+        .limit(page.limit)
+        .all()
+    )
+
 @router.patch(
     "/{tenant_name}/products/{product_id}", response_model=schemas.ProductResponse
 )
