@@ -1,6 +1,76 @@
 from tests.helpers import add_product
 
 
+def test_marketplace_checkout_creates_brand_orders_in_one_request(
+    client, make_admin, make_regular_user, login_as
+):
+    admin, first_brand = make_admin()
+    login_as(admin)
+    second_brand = client.post("/tenants", json={"name": "studio"}).json()
+    first_product = add_product(
+        client, first_brand.name, quantity=10, price=20.0, name="Canvas tote"
+    )
+    second_product = add_product(
+        client, second_brand["name"], quantity=8, price=35.0, name="Linen throw"
+    )
+
+    customer, _ = make_regular_user(tenant_name=first_brand.name)
+    login_as(customer)
+    response = client.post(
+        "/orders",
+        json={
+            "order_items": [
+                {"product_id": first_product["id"], "quantity": 2},
+                {"product_id": second_product["id"], "quantity": 3},
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    orders = response.json()
+    assert len(orders) == 2
+    assert {order["tenant_id"] for order in orders} == {
+        first_brand.id,
+        second_brand["id"],
+    }
+    assert {order["amount"] for order in orders} == {40.0, 105.0}
+    assert sum(order["total_quantity"] for order in orders) == 5
+    assert client.get(f"/{first_brand.name}/products").json()[0]["quantity"] == 8
+    assert client.get(f"/{second_brand['name']}/products").json()[0]["quantity"] == 5
+    assert len(client.get("/orders").json()) == 2
+
+
+def test_marketplace_checkout_is_atomic_when_one_brand_is_out_of_stock(
+    client, make_admin, make_regular_user, login_as
+):
+    admin, first_brand = make_admin()
+    login_as(admin)
+    second_brand = client.post("/tenants", json={"name": "studio"}).json()
+    first_product = add_product(
+        client, first_brand.name, quantity=10, price=20.0, name="Canvas tote"
+    )
+    second_product = add_product(
+        client, second_brand["name"], quantity=2, price=35.0, name="Linen throw"
+    )
+
+    customer, _ = make_regular_user(tenant_name=first_brand.name)
+    login_as(customer)
+    response = client.post(
+        "/orders",
+        json={
+            "order_items": [
+                {"product_id": first_product["id"], "quantity": 2},
+                {"product_id": second_product["id"], "quantity": 2},
+            ]
+        },
+    )
+
+    assert response.status_code == 400
+    assert client.get(f"/{first_brand.name}/products").json()[0]["quantity"] == 10
+    assert client.get(f"/{second_brand['name']}/products").json()[0]["quantity"] == 2
+    assert client.get("/orders").json() == []
+
+
 def test_order_reduces_stock_and_computes_total(
     client, make_admin, make_regular_user, login_as
 ):

@@ -108,8 +108,11 @@ All private calls need `Authorization: Bearer <Keycloak access token>`.
   access. Product POST/PATCH/DELETE under `/nike/products` uses that same check.
   `/adidas/dashboard` is forbidden to Nike's manager.
 - Everyone: `GET /tenants`, `GET /nike/products?search=shoe&category=footwear`.
-- Signed-in shopper or manager: `POST /nike/orders` with
-  `{"order_items":[{"product_id":1,"quantity":2}]}`.
+- Signed-in shopper or manager: `POST /orders` with
+  `{"order_items":[{"product_id":1,"quantity":2},{"product_id":8,"quantity":1}]}`
+  for a single marketplace checkout across brands. The backend validates every
+  item and commits one brand-scoped order per brand atomically. Use
+  `POST /nike/orders` when placing an order for only one brand.
 - Own history: `GET /orders` across brands, or `GET /nike/orders` for one brand.
 - Own favourites: `GET /favourites`; `POST /favourites/{product_id}` toggles.
 - Profile: `GET /users/me`; customer/admin `tenant_id` and `tenant_name` are null.
@@ -126,9 +129,7 @@ its products/favourites and makes its managers regular customers.
 
 ## Frontend compatibility
 
-This update is backend-only. The existing frontend must remove the customer
-brand selector and send only `{name}` to `/users`; accept nullable profile brand
-fields; replace manager role-promotion controls with username/password creation;
-use `/orders` for cross-brand history and role/brand checks for management screens.
-The API rejects the old signup payload so accidental customer membership cannot
-be reintroduced by an outdated client. UI restrictions never replace backend checks.
+The frontend uses a brand filter for product browsing and one bag across brands.
+Its checkout sends the bag to `POST /orders`, which creates the appropriate
+brand-scoped order records in one transaction. The API enforces authorization
+independently of frontend visibility.
