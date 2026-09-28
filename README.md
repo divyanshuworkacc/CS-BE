@@ -32,6 +32,7 @@ app/
   routers/         HTTP endpoints by feature
   services/
     accounts.py    Manager account creation and access revocation
+    catalog.py     Shared, paginated product ordering
     keycloak.py    Keycloak account/password operations
 scripts/seed_admin.py  Explicit platform-admin bootstrap
 tests/             Isolated API and service tests
@@ -107,14 +108,16 @@ All private calls need `Authorization: Bearer <Keycloak access token>`.
 - Manager: login using those credentials; `GET /nike/dashboard` checks management
   access. Product POST/PATCH/DELETE under `/nike/products` uses that same check.
   `/adidas/dashboard` is forbidden to Nike's manager.
-- Everyone: `GET /tenants`, `GET /nike/products?search=shoe&category=footwear`.
+- Everyone: `GET /tenants`, `GET /nike/products?search=shoe&category=footwear&sort=price-high`.
+  Catalogs also accept `sort=featured` (default), `price-low`, `price-high`, or
+  `name`; sorting is applied in the database before `skip`/`limit` pagination.
 - Signed-in shopper or manager: `POST /orders` with
   `{"order_items":[{"product_id":1,"quantity":2},{"product_id":8,"quantity":1}]}`
   for a single marketplace checkout across brands. The backend validates every
   item and commits one brand-scoped order per brand atomically. Use
   `POST /nike/orders` when placing an order for only one brand.
 - Own history: `GET /orders` across brands, or `GET /nike/orders` for one brand.
-- Own favourites: `GET /favourites`; `POST /favourites/{product_id}` toggles.
+- Own favourites: `GET /favourites?sort=name`; `POST /favourites/{product_id}` toggles.
 - Profile: `GET /users/me`; customer/admin `tenant_id` and `tenant_name` are null.
 - Admin manager maintenance: `GET /nike/users`,
   `PATCH /nike/users/nike_manager` with name and/or password,

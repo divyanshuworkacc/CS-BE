@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
 from app.dependencies import Pagination, get_tenant_or_404, require_brand_manager
+from app.services.catalog import ProductSort, order_products
 
 router = APIRouter(tags=["Products"])
 
@@ -46,6 +47,7 @@ def get_products(
     tenant_name: str,
     search: str | None = None,
     category: str | None = None,
+    sort: ProductSort = "featured",
     page: Pagination = Depends(),
     db: Session = Depends(get_db),
 ):
@@ -55,13 +57,14 @@ def get_products(
         query = query.filter(models.Product.category == category)
     if search:
         query = query.filter(models.Product.name.contains(search, autoescape=True))
-    return query.order_by(models.Product.id).offset(page.skip).limit(page.limit).all()
+    return order_products(query, sort).offset(page.skip).limit(page.limit).all()
 
 
 @router.get("/products", response_model=list[schemas.ProductResponse])
 def get_all_products(
     search: str | None = None,
     category: str | None = None,
+    sort: ProductSort = "featured",
     page: Pagination = Depends(),
     db: Session = Depends(get_db),
 ):
@@ -71,7 +74,7 @@ def get_all_products(
     if search:
         query = query.filter(models.Product.name.contains(search, autoescape=True))
     return (
-        query.order_by(models.Product.tenant_id, models.Product.id)
+        order_products(query, sort)
         .offset(page.skip)
         .limit(page.limit)
         .all()

@@ -62,6 +62,40 @@ def test_category_filter(client, as_admin):
     assert names == ["Classic Tee"]
 
 
+def test_sort_is_applied_across_brands_before_pagination(client, as_admin, db_session):
+    _, tenant = as_admin
+    add_product(client, tenant.name, name="Budget option", price=10)
+    add_product(client, tenant.name, name="Middle option", price=100)
+    other = models.Tenant(name="second-brand")
+    db_session.add(other)
+    db_session.commit()
+    add_product(client, other.name, name="Premium option", price=1000)
+
+    first_page = client.get("/products", params={"sort": "price-high", "limit": 1})
+    second_page = client.get(
+        "/products", params={"sort": "price-high", "skip": 1, "limit": 1}
+    )
+
+    assert [product["name"] for product in first_page.json()] == ["Premium option"]
+    assert [product["name"] for product in second_page.json()] == ["Middle option"]
+
+
+def test_name_sort_is_case_insensitive_for_brand_catalog(client, as_admin):
+    _, tenant = as_admin
+    add_product(client, tenant.name, name="zebra", price=10)
+    add_product(client, tenant.name, name="Apple", price=100)
+
+    response = client.get(f"/{tenant.name}/products", params={"sort": "name"})
+
+    assert [product["name"] for product in response.json()] == ["Apple", "zebra"]
+
+
+def test_product_sort_rejects_unknown_values(client):
+    response = client.get("/products", params={"sort": "random"})
+
+    assert response.status_code == 422
+
+
 def test_rename_rejects_duplicate_name_within_tenant(client, as_admin):
     _, tenant = as_admin
     add_product(client, tenant.name, name="Air Max 90")

@@ -5,6 +5,7 @@ from app import models, schemas
 from app.auth import get_current_user
 from app.database import get_db
 from app.dependencies import Pagination
+from app.services.catalog import ProductSort, order_products
 
 router = APIRouter()
 
@@ -13,22 +14,27 @@ router = APIRouter()
     "/favourites", response_model=list[schemas.ProductResponse], tags=["Favourites"]
 )
 def favourites(
+    sort: ProductSort = "featured",
     page: Pagination = Depends(),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    db_favs = (
-        db.query(models.Favourite)
-        .filter(models.Favourite.user_id == current_user.id)
-        .order_by(models.Favourite.id)
+    fav_products = (
+        db.query(models.Product)
+        .filter(
+            models.Product.id.in_(
+                db.query(models.Favourite.product_id).filter(
+                    models.Favourite.user_id == current_user.id
+                )
+            )
+        )
+    )
+    return (
+        order_products(fav_products, sort)
         .offset(page.skip)
         .limit(page.limit)
         .all()
     )
-
-    fav_products = [fav.product for fav in db_favs]
-
-    return fav_products
 
 
 @router.post(
