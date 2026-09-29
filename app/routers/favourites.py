@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.auth import get_current_user
 from app.database import get_db
-from app.dependencies import Pagination
+from app.dependencies import Pagination, get_tenant_or_404
 from app.services.catalog import ProductSort, order_products
 
 router = APIRouter()
@@ -14,6 +14,9 @@ router = APIRouter()
     "/favourites", response_model=list[schemas.ProductResponse], tags=["Favourites"]
 )
 def favourites(
+    tenant_name: str | None = None,
+    search: str | None = None,
+    category: str | None = None,
     sort: ProductSort = "featured",
     page: Pagination = Depends(),
     db: Session = Depends(get_db),
@@ -29,6 +32,15 @@ def favourites(
             )
         )
     )
+    if tenant_name:
+        tenant = get_tenant_or_404(db, tenant_name)
+        fav_products = fav_products.filter(models.Product.tenant_id == tenant.id)
+    if category:
+        fav_products = fav_products.filter(models.Product.category == category)
+    if search:
+        fav_products = fav_products.filter(
+            models.Product.name.contains(search, autoescape=True)
+        )
     return (
         order_products(fav_products, sort)
         .offset(page.skip)
