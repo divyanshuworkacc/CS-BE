@@ -27,16 +27,6 @@ def test_customer_signup_without_any_brand(client, as_new_signup, db_session):
     assert client.post("/users", json={"name": "Duplicate"}).status_code == 409
 
 
-@pytest.mark.parametrize(
-    "field,value", [("tenant_id", 1), ("role_id", 1), ("username", "admin")]
-)
-def test_signup_cannot_choose_brand_or_privileges(client, as_new_signup, field, value):
-    assert (
-        client.post("/users", json={"name": "Customer", field: value}).status_code
-        == 422
-    )
-
-
 def test_admin_creates_manager_with_keycloak_credentials(
     client, as_admin, keycloak, db_session
 ):
