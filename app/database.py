@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -27,6 +27,10 @@ def init_db():
     from app import models
 
     models.Base.metadata.create_all(bind=engine)
+    order_columns = {column["name"] for column in inspect(engine).get_columns("orders")}
+    if "address" not in order_columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE orders ADD COLUMN address VARCHAR(500)"))
     with SessionLocal() as db:
         for role_name in ("Admin", "Tenant", "User"):
             if not db.query(models.Role).filter(models.Role.name == role_name).first():

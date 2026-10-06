@@ -21,6 +21,9 @@ Username = Annotated[
     ),
 ]
 Password = Annotated[SecretStr, Field(min_length=8, max_length=256)]
+DeliveryAddress = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
+]
 
 
 class RequestModel(BaseModel):
@@ -114,6 +117,7 @@ class OrderItemCreate(RequestModel):
 
 
 class OrderCreate(RequestModel):
+    address: DeliveryAddress
     order_items: list[OrderItemCreate] = Field(min_length=1, max_length=100)
 
 
@@ -128,6 +132,7 @@ class OrderResponse(ResponseModel):
     id: int
     total_quantity: int
     amount: float
+    address: str | None
     user_id: int
     tenant_id: int
     order_items: list[OrderItemResponse]

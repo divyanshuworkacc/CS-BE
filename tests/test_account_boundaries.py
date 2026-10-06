@@ -1,6 +1,7 @@
 from app import models
-from app.database import init_db
+from app.database import engine, init_db
 from tests.helpers import add_product
+from sqlalchemy import inspect, text
 
 
 def test_history_survives_manager_access_removal(
@@ -12,7 +13,7 @@ def test_history_survives_manager_access_removal(
     login_as(manager)
     order = client.post(
         "/acme/orders",
-        json={"order_items": [{"product_id": product["id"], "quantity": 1}]},
+        json={"address": "12 Market Street, Springfield", "order_items": [{"product_id": product["id"], "quantity": 1}]},
     )
     assert order.status_code == 200
     login_as(admin)
@@ -50,7 +51,7 @@ def test_manager_shops_elsewhere_but_cannot_manage_it(
     )
     response = client.post(
         "/adidas/orders",
-        json={"order_items": [{"product_id": product["id"], "quantity": 1}]},
+        json={"address": "12 Market Street, Springfield", "order_items": [{"product_id": product["id"], "quantity": 1}]},
     )
     assert response.status_code == 200
     assert response.json()["tenant_id"] == other_brand.id
@@ -78,6 +79,16 @@ def test_upgrade_detaches_only_customers_and_admins(
     assert customer.tenant_id is None
     assert manager.tenant_id == brand.id
     assert db_session.query(models.User).count() == 3
+
+
+def test_init_db_adds_address_column_to_existing_orders_table(db_session):
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE orders RENAME COLUMN address TO old_address"))
+
+    init_db()
+
+    order_columns = {column["name"] for column in inspect(engine).get_columns("orders")}
+    assert "address" in order_columns
 
 
 def test_brand_removal_turns_its_manager_into_customer(

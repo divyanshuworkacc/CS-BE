@@ -42,6 +42,19 @@ def add_product(
     return save_product(db, row)
 
 
+@router.get("/categories", response_model=list[str])
+def get_categories(tenant_name: str | None = None, db: Session = Depends(get_db)):
+    query = db.query(models.Product.category)
+    if tenant_name:
+        tenant = get_tenant_or_404(db, tenant_name)
+        query = query.filter(models.Product.tenant_id == tenant.id)
+    return [
+        category
+        for (category,) in query.distinct().order_by(models.Product.category).all()
+    ]
+
+
+
 @router.get("/{tenant_name}/products", response_model=list[schemas.ProductResponse])
 def get_products(
     tenant_name: str,
@@ -113,3 +126,5 @@ def delete_product(
     db.delete(product)
     db.commit()
     return result
+
+

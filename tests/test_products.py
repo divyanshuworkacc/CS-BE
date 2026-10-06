@@ -62,6 +62,42 @@ def test_category_filter(client, as_admin):
     assert names == ["Classic Tee"]
 
 
+def test_categories_are_unpaginated_and_can_be_scoped_to_tenant(
+    client, as_admin, db_session
+):
+    _, tenant = as_admin
+    for index in range(11):
+        response = client.post(
+            f"/{tenant.name}/products",
+            json={
+                "name": f"Product {index}",
+                "category": f"category-{index:02}",
+                "quantity": 1,
+                "price": 1,
+            },
+        )
+        assert response.status_code == 200
+
+    other_tenant = models.Tenant(name="other-brand")
+    db_session.add(other_tenant)
+    db_session.commit()
+    add_product(client, other_tenant.name, name="Other brand product")
+
+    all_categories = client.get("/categories")
+    tenant_categories = client.get("/categories", params={"tenant_name": tenant.name})
+
+    assert all_categories.status_code == 200
+    assert "category-10" in all_categories.json()
+    assert "misc" in all_categories.json()
+    assert tenant_categories.json() == [f"category-{index:02}" for index in range(11)]
+
+
+def test_categories_return_404_for_unknown_tenant(client):
+    response = client.get("/categories", params={"tenant_name": "unknown-brand"})
+
+    assert response.status_code == 404
+
+
 def test_sort_is_applied_across_brands_before_pagination(client, as_admin, db_session):
     _, tenant = as_admin
     add_product(client, tenant.name, name="Budget option", price=10)

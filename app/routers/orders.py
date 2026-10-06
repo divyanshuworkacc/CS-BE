@@ -54,6 +54,7 @@ def create_marketplace_checkout(
             models.Order(
                 total_quantity=sum(item.quantity for item in order_items),
                 amount=amount,
+                address=order.address,
                 user_id=current_user.id,
                 tenant_id=tenant_id,
                 order_items=order_items,
@@ -122,6 +123,7 @@ def create_order(
     db_order = models.Order(
         total_quantity=total_quantity,
         amount=total_amount,
+        address=order.address,
         user_id=current_user.id,
         tenant_id=db_tenant.id,
         order_items=order_items_list,

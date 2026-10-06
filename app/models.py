@@ -79,6 +79,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     total_quantity = Column(Integer)
     amount = Column(Float)
+    address = Column(String(500), nullable=True)
 
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
